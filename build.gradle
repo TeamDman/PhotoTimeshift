@@ -1,11 +1,22 @@
-buildscript {
-    repositories {
-        mavenCentral()
-    }
+repositories {
+    mavenCentral()
 }
 apply plugin: 'idea'
 apply plugin: 'java'
 
-dependencies  {
+dependencies {
     compile group:"com.drewnoakes", name: "metadata-extractor", version: "2.12.0"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["src"]
+        }
+    }
+}
+
+task getDeps(type: Copy) {
+    from sourceSets.main.compileClasspath
+    into 'libs/'
 }
