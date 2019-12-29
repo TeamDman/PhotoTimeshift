@@ -1,17 +1,15 @@
 import javax.swing.*;
-import javax.swing.filechooser.FileFilter;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
-import java.util.function.Consumer;
 
 public class MainForm {
-	private JPanel     panelOutput;
-	private JPanel     panelMain;
-	private JTextField txtOutputPath;
 	private JButton    btnBrowseOutput;
 	private JButton    btnOpenOutputDir;
+	private JPanel     panelMain;
+	private JPanel     panelOutput;
+	private JTextField txtOutputPath;
 
 	public MainForm() {
 		panelOutput.setBorder(BorderFactory.createTitledBorder(panelOutput.getName()));
@@ -35,7 +33,8 @@ public class MainForm {
 
 
 	private class BrowseFilesAdapter extends MouseAdapter {
-		private File             path = new File("./");
+		private File path = new File("./");
+
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			JFileChooser chooser = new JFileChooser();
