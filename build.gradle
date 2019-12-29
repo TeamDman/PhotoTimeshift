@@ -1,0 +1,11 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+}
+apply plugin: 'idea'
+apply plugin: 'java'
+
+dependencies  {
+    compile group:"com.drewnoakes", name: "metadata-extractor", version: "2.12.0"
+}
