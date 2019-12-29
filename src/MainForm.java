@@ -15,7 +15,7 @@ public class MainForm {
 
 	public MainForm() {
 		panelOutput.setBorder(BorderFactory.createTitledBorder(panelOutput.getName()));
-		btnBrowseOutput.addMouseListener(new BrowseFilesAdapter((path) -> txtOutputPath.setText(path)));
+		btnBrowseOutput.addMouseListener(new BrowseFilesAdapter());
 		btnOpenOutputDir.addMouseListener(new OpenOutputAdapter());
 	}
 
@@ -36,11 +36,6 @@ public class MainForm {
 
 	private class BrowseFilesAdapter extends MouseAdapter {
 		private File             path = new File("./");
-		private Consumer<String> callback;
-		public BrowseFilesAdapter(Consumer<String> callback) {
-			this.callback = callback;
-		}
-
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			JFileChooser chooser = new JFileChooser();
@@ -49,7 +44,7 @@ public class MainForm {
 			chooser.setCurrentDirectory(path);
 			if (chooser.showOpenDialog(panelMain) == JFileChooser.APPROVE_OPTION) {
 				path = chooser.getSelectedFile();
-				callback.accept(path.getAbsolutePath());
+				txtOutputPath.setText(path.getAbsolutePath());
 			}
 		}
 	}
