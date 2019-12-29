@@ -10,8 +10,8 @@ apply plugin: 'java'
 apply plugin: 'java-library'
 
 dependencies {
-    runtime group:"com.drewnoakes", name: "metadata-extractor", version: "2.12.0"
-    runtime name:"filedrop.jar"
+    compile group:"com.drewnoakes", name: "metadata-extractor", version: "2.12.0"
+    compile name:"filedrop"
 }
 
 group = "ca.teamdman"
@@ -34,4 +34,10 @@ compileJava {
     options.incremental = true
     options.fork = true
     options.failOnError = true
+}
+
+task dumpCompile {
+    configurations.compile.each {
+        println "compile: $it"
+    }
 }
