@@ -8,35 +8,77 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Optional;
+
 import com.toedter.calendar.JDateChooser;
+import org.apache.commons.imaging.ImageReadException;
+import org.apache.commons.imaging.ImageWriteException;
 
 public class MainForm {
-	private JButton              btnBrowseOutput;
-	private JButton              btnOpenOutputDir;
-	private JPanel               panelMain;
-	private JPanel               panelOutput;
-	private JTextField           txtOutputPath;
-	private JTable               tblFiles;
-	private JPanel               panelInput;
-	private JPanel               panelAdjust;
-	private JSpinner             spinOffset;
-
+	private JFrame       instance;
+	private JButton      btnBrowseOutput;
+	private JButton      btnOpenOutputDir;
+	private JPanel       panelMain;
+	private JPanel       panelOutput;
+	private JTextField   txtOutputPath;
+	private JTable       tblFiles;
+	private JPanel       panelInput;
+	private JPanel       panelAdjust;
+	private JPanel       panelDateSet;
+	private JCheckBox    chkSetDate;
+	private JCheckBox    chkOffsetTime;
+	private JSpinner     spinMinutes;
+	private JSpinner     spinHours;
+	private JSpinner     spinDays;
+	private JPanel       panelOffset;
+	private JPanel       panelGo;
+	private JButton      btnGo;
+	private JProgressBar prog;
+	private JSpinner     spinOffset;
+	private JDateChooser dateChooser;
 	private ArrayList<InputItem> inputItems = new ArrayList<>();
 
-	public MainForm() {
+	private void fillPanel(JPanel panel, JComponent component) {
+		panel.add(component, new GridConstraints(0, 0, 1, 1,
+				GridConstraints.ANCHOR_CENTER,
+				GridConstraints.FILL_BOTH,
+				GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+				GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+				null,
+				null,
+				null,
+				0,
+				false));
+	}
+
+	public MainForm(JFrame frame) {
 		$$$setupUI$$$();
+		this.instance = frame;
+		fillPanel(panelDateSet, dateChooser);
+		dateChooser.setEnabled(chkSetDate.isSelected());
+		dateChooser.setDate(new Date());
 		panelInput.setBorder(BorderFactory.createTitledBorder(panelInput.getName()));
 		panelOutput.setBorder(BorderFactory.createTitledBorder(panelOutput.getName()));
 		panelAdjust.setBorder(BorderFactory.createTitledBorder(panelAdjust.getName()));
 		btnBrowseOutput.addMouseListener(new BrowseFilesAdapter());
 		btnOpenOutputDir.addMouseListener(new OpenOutputAdapter());
-		txtOutputPath.setText(System.getProperty("java.io.tmpdir"));
+		txtOutputPath.setText(Paths.get(System.getProperty("java.io.tmpdir"), "PhotoTimeshift").toString());
 		new FileDrop(panelMain, files -> {
 			for (File f : files)
 				addFile(f);
 			draw();
 		});
+		chkSetDate.addChangeListener(e -> dateChooser.setEnabled(chkSetDate.isSelected()));
+		chkOffsetTime.addChangeListener(e -> {
+			for (Component j : panelOffset.getComponents()) {
+				j.setEnabled(chkOffsetTime.isSelected());
+			}
+		});
+		btnGo.addMouseListener(new BeginAdapter());
 	}
 
 	public void addFile(File path) {
@@ -48,7 +90,8 @@ public class MainForm {
 	}
 
 	public void draw() {
-		DefaultTableModel model = (DefaultTableModel) tblFiles.getModel();
+		DefaultTableModel model = new DefaultTableModel();
+		tblFiles.setModel(model);
 		for (InputItem x : inputItems) {
 			model.addRow(new Object[]{x.toString(), x.getDateOriginal(), "lmao"});
 		}
@@ -62,7 +105,7 @@ public class MainForm {
 		}
 		JFrame instance = new JFrame("PhotoTimeshift");
 		instance.setTitle("PhotoTimeshift");
-		instance.setContentPane(new MainForm().panelMain);
+		instance.setContentPane(new MainForm(instance).panelMain);
 		instance.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		instance.pack();
 		instance.setVisible(true);
@@ -71,6 +114,7 @@ public class MainForm {
 	private void createUIComponents() {
 		tblFiles = new JTable(new DefaultTableModel(new Object[]{"Input File", "Input Time", "Output Time"}, 0));
 		spinOffset = new JSpinner(new SpinnerNumberModel());
+		dateChooser = new JDateChooser();
 	}
 
 	/**
@@ -83,12 +127,12 @@ public class MainForm {
 	private void $$$setupUI$$$() {
 		createUIComponents();
 		panelMain = new JPanel();
-		panelMain.setLayout(new GridLayoutManager(2, 1, new Insets(0, 0, 0, 0), -1, -1));
+		panelMain.setLayout(new GridLayoutManager(4, 3, new Insets(0, 0, 0, 0), -1, -1));
 		panelMain.setName("");
 		panelOutput = new JPanel();
 		panelOutput.setLayout(new GridLayoutManager(1, 4, new Insets(0, 0, 0, 0), -1, -1));
 		panelOutput.setName("Output");
-		panelMain.add(panelOutput, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+		panelMain.add(panelOutput, new GridConstraints(1, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
 		final JLabel label1 = new JLabel();
 		label1.setText("Directory");
 		panelOutput.add(label1, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
@@ -102,20 +146,56 @@ public class MainForm {
 		btnOpenOutputDir.setText("Open");
 		panelOutput.add(btnOpenOutputDir, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
 		panelInput = new JPanel();
-		panelInput.setLayout(new GridLayoutManager(2, 1, new Insets(0, 0, 0, 0), -1, -1));
+		panelInput.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
 		panelInput.setName("Input");
-		panelMain.add(panelInput, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+		panelMain.add(panelInput, new GridConstraints(0, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
 		final JScrollPane scrollPane1 = new JScrollPane();
 		panelInput.add(scrollPane1, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
 		scrollPane1.setViewportView(tblFiles);
 		panelAdjust = new JPanel();
-		panelAdjust.setLayout(new GridLayoutManager(1, 2, new Insets(0, 0, 0, 0), -1, -1));
+		panelAdjust.setLayout(new GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1));
 		panelAdjust.setName("Time Adjustment");
-		panelInput.add(panelAdjust, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-		panelAdjust.add(spinOffset, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		panelMain.add(panelAdjust, new GridConstraints(2, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		chkSetDate = new JCheckBox();
+		chkSetDate.setText("Set date");
+		panelAdjust.add(chkSetDate, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		panelDateSet = new JPanel();
+		panelDateSet.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
+		panelDateSet.setEnabled(true);
+		panelAdjust.add(panelDateSet, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+		chkOffsetTime = new JCheckBox();
+		chkOffsetTime.setSelected(true);
+		chkOffsetTime.setText("Offset time");
+		panelAdjust.add(chkOffsetTime, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		panelOffset = new JPanel();
+		panelOffset.setLayout(new GridLayoutManager(1, 6, new Insets(0, 0, 0, 0), -1, -1));
+		panelAdjust.add(panelOffset, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
 		final JLabel label2 = new JLabel();
-		label2.setText("Time offset");
-		panelAdjust.add(label2, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		label2.setText("Minutes");
+		panelOffset.add(label2, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		spinMinutes = new JSpinner();
+		spinMinutes.setEnabled(true);
+		panelOffset.add(spinMinutes, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		final JLabel label3 = new JLabel();
+		label3.setText("Hours");
+		panelOffset.add(label3, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		spinHours = new JSpinner();
+		spinHours.setEnabled(true);
+		panelOffset.add(spinHours, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		final JLabel label4 = new JLabel();
+		label4.setText("Days");
+		panelOffset.add(label4, new GridConstraints(0, 4, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		spinDays = new JSpinner();
+		spinDays.setEnabled(true);
+		panelOffset.add(spinDays, new GridConstraints(0, 5, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		panelGo = new JPanel();
+		panelGo.setLayout(new GridLayoutManager(1, 2, new Insets(0, 0, 0, 0), -1, -1));
+		panelMain.add(panelGo, new GridConstraints(3, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+		btnGo = new JButton();
+		btnGo.setText("Apply");
+		panelGo.add(btnGo, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+		prog = new JProgressBar();
+		panelGo.add(prog, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
 	}
 
 	/**
@@ -125,6 +205,45 @@ public class MainForm {
 		return panelMain;
 	}
 
+	private class BeginAdapter extends MouseAdapter {
+		@Override
+		public void mouseClicked(MouseEvent event) {
+			Optional<File> outDir = ensureOutputDirExists();
+			if (!outDir.isPresent()) {
+				JOptionPane.showMessageDialog(instance, "Failed to create output directory, aborting.");
+				return;
+			}
+			prog.setMaximum(inputItems.size());
+			prog.setValue(0);
+			new Thread(() -> {
+				inputItems.forEach(item -> {
+					try {
+						item.adjust(
+								Paths.get(outDir.get().getAbsolutePath(), item.path.getName()).toFile(),
+								item.getNewDate(
+										chkSetDate.isSelected() ? dateChooser.getDate() : null,
+										chkOffsetTime.isSelected() ? getTimeOffset() : 0
+								)
+						);
+					} catch (IOException | ImageReadException | ImageWriteException ex) {
+						ex.printStackTrace();
+						item.problem = true;
+						draw();
+					}
+					prog.setValue(prog.getValue() + 1);
+				});
+				JOptionPane.showMessageDialog(instance, String.format("Operation completed successfully on %d photos.", inputItems.stream().filter(x -> !x.problem).count()));
+			}).start();
+		}
+	}
+
+	private long getTimeOffset() {
+		if (!chkOffsetTime.isSelected())
+			return 0;
+		return (Integer) spinMinutes.getModel().getValue() * ChronoUnit.MINUTES.getDuration().getSeconds() * 1000
+				+ (Integer) spinHours.getModel().getValue() * ChronoUnit.HOURS.getDuration().getSeconds() * 1000
+				+ (Integer) spinDays.getModel().getValue() * ChronoUnit.DAYS.getDuration().getSeconds() * 1000;
+	}
 
 	private class BrowseFilesAdapter extends MouseAdapter {
 		private File path = new File("./");
@@ -142,10 +261,23 @@ public class MainForm {
 		}
 	}
 
+	public Optional<File> ensureOutputDirExists() {
+		File dir = new File(txtOutputPath.getText());
+		if (dir.exists())
+			return Optional.of(dir);
+		try {
+			if (dir.mkdirs())
+				return Optional.of(dir);
+		} catch (SecurityException ignored) {
+		}
+		return Optional.empty();
+	}
+
 	private class OpenOutputAdapter extends MouseAdapter {
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			try {
+				ensureOutputDirExists();
 				Desktop.getDesktop().open(new File(txtOutputPath.getText()));
 			} catch (IOException ex) {
 				ex.printStackTrace();
